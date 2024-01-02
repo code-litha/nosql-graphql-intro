@@ -1,27 +1,100 @@
 const { ObjectId } = require("mongodb");
-const { getDatabase } = require("../config/db");
+const { getDatabase } = require("../config/mongoConnect");
+const { GraphQLError } = require("graphql");
 
-class Product {
-  static collection() {
-    const database = getDatabase();
-    const productCollection = database.collection("products");
+const getCollection = () => {
+  const database = getDatabase();
+  const productCollection = database.collection("products");
 
-    return productCollection;
-  }
+  return productCollection;
+};
 
-  static async findAll() {
-    const products = await this.collection().find({}).toArray();
+const getAllProduct = async () => {
+  const productCollection = getCollection();
 
-    return products;
-  }
+  const products = await productCollection.find().toArray();
 
-  static async findOne(id) {
-    const product = await this.collection().findOne({
+  return products;
+};
+
+const getOneProduct = async (id) => {
+  const productCollection = getCollection();
+  const product = await productCollection.findOne({
+    _id: new ObjectId(id),
+  });
+
+  return product;
+};
+
+const createOneProduct = async (payload) => {
+  const productCollection = getCollection();
+
+  // const newProduct = await productCollection.insertOne({
+  //   // name: args.productInput.name,
+  //   // stock: args.productInput.stock,
+  //   // price: args.productInput.price,
+  //   ...args.productInput,
+  // });
+
+  const newProduct = await productCollection.insertOne(payload);
+
+  // console.log(newProduct, "<<< new product");
+
+  const product = await productCollection.findOne({
+    _id: newProduct.insertedId,
+  });
+
+  return product;
+};
+
+const updateOneProduct = async (id, payload) => {
+  const productCollection = getCollection();
+
+  const updatedProduct = await productCollection.updateOne(
+    {
       _id: new ObjectId(id),
+    },
+    {
+      $set: payload,
+    }
+  );
+
+  console.log(updatedProduct, "<<< updated product");
+
+  const product = await productCollection.findOne({
+    _id: new ObjectId(id),
+  });
+
+  return product;
+};
+
+const deleteOneProduct = async (id) => {
+  const productCollection = getCollection();
+
+  const deletedProduct = await productCollection.deleteOne({
+    _id: new ObjectId(id),
+  });
+
+  console.log(deletedProduct, "<<< deleted product");
+
+  if (!deletedProduct.deletedCount) {
+    throw new GraphQLError("Product Not Found", {
+      extensions: {
+        code: "NOTFOUND",
+        http: { status: 404 },
+      },
     });
-
-    return product;
+    // throw new Error("Product Not Found"); // return status 200
   }
-}
 
-module.exports = Product;
+  return deletedProduct;
+};
+
+module.exports = {
+  getCollection,
+  getAllProduct,
+  getOneProduct,
+  createOneProduct,
+  updateOneProduct,
+  deleteOneProduct,
+};

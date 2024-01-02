@@ -11,20 +11,6 @@ const typeDefs = `#graphql
     error: String
     data: [Book]
   }
-
-  type ResponseProduct implements Response {
-    statusCode: Int!
-    message: String
-    error: String
-    data: [Product]
-  }
-
-  type ResponseCreateProduct implements Response {
-    statusCode: Int!
-    message: String
-    error: String
-    data: Product
-  }
 `;
 
 module.exports = {
