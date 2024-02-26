@@ -1,16 +1,13 @@
-require("dotenv").config();
-const { mongoConnect } = require("./config/mongoConnect");
 const { ApolloServer } = require("@apollo/server");
 const { startStandaloneServer } = require("@apollo/server/standalone");
 const { bookResolvers, bookTypeDefs } = require("./schemas/book");
-const { responseTypeDefs } = require("./schemas/response");
-const { productTypeDefs, productResolvers } = require("./schemas/products");
 const PORT = process.env.PORT || 4000;
+const { mongoConnect } = require("./config/mongoConnection");
+const { productTypeDefs, productResolvers } = require("./schemas/products");
 
 const server = new ApolloServer({
-  typeDefs: [bookTypeDefs, responseTypeDefs, productTypeDefs],
+  typeDefs: [bookTypeDefs, productTypeDefs],
   resolvers: [bookResolvers, productResolvers],
-  // introspection: true, // ini buat nanti pas deploy aja
 });
 
 (async () => {
@@ -22,14 +19,9 @@ const server = new ApolloServer({
       },
       context: async ({ req, res }) => {
         return {
-          // authentication: () => {
-          //   throw new GraphQLError("User is not authenticated", {
-          //     extensions: {
-          //       code: "UNAUTHENTICATED",
-          //       http: { status: 401 },
-          //     },
-          //   });
-          // },
+          auth: () => {
+            return "Context Auth dijalankan";
+          },
         };
       },
     });

@@ -7,6 +7,13 @@ const typeDefs = `#graphql
     author: String
   }
 
+  type ResponseBook {
+    statusCode: Int!
+    message: String
+    error: String
+    data: [Book]
+  }
+
   type Query {
     books: ResponseBook
     book(id: ID!): ResponseBook

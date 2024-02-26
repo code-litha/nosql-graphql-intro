@@ -1,78 +1,112 @@
+const { ObjectId } = require("mongodb");
+const { getDatabase } = require("../config/mongoConnection");
 const {
-  getAllProduct,
-  getOneProduct,
-  createOneProduct,
-  updateOneProduct,
+  findAllProduct,
+  findOneProductById,
   deleteOneProduct,
 } = require("../model/product");
-const { GraphQLError } = require("graphql");
 
 const typeDefs = `#graphql
   type Product {
     _id: ID
     name: String
-    stock: Int
     price: Int
+    stock: Int
+  }
+
+  type Message {
+    message: String
   }
 
   type Query {
     getProducts: [Product]
-    getProductById(id: ID!): Product
-  }
-
-  input ProductInput {
-    name: String!
-    stock: Int!
-    price: Int!
-  }
-
-  input ProductUpdate {
-    name: String
-    stock: Int
-    price: Int
-    id: ID!
+    getProductById(productId: ID!): Product
   }
 
   type Mutation {
-    createProduct(productInput: ProductInput): Product
-    updateProduct(productUpdate: ProductUpdate): Product
-    deleteProduct(id: ID!): String
+    deleteProduct(productId: ID!): Message
+    addProduct(name: String, price: Int, stock: Int): Product
+    updateProduct(id: ID!, name: String, price: Int, stock: Int): Product
   }
 `;
 
 const resolvers = {
   Query: {
-    getProducts: async (_parent, _args, context) => {
-      const products = await getAllProduct();
+    getProducts: async () => {
+      const products = await findAllProduct();
+      console.log(products, "<<< products");
+      // for await (const doc of products) {
+      //   console.log(doc, "<<< doc");
+      // }
       return products;
     },
     getProductById: async (_parent, args) => {
-      const product = await getOneProduct(args.id);
+      const product = await findOneProductById(args.productId);
+
       return product;
     },
   },
   Mutation: {
-    createProduct: async (_parent, args) => {
-      const product = await createOneProduct(args.productInput);
+    deleteProduct: async (_parent, args) => {
+      const product = await deleteOneProduct(args.productId);
+
+      console.log(product, "<<< product");
+
+      return {
+        message: `Successfully delete product with id ${args.productId}`,
+      };
+    },
+    addProduct: async (_parent, args) => {
+      // console.log(args);
+      const db = getDatabase();
+      const productCollection = db.collection("products");
+
+      const newProduct = await productCollection.insertOne({
+        name: args.name,
+        price: args.price,
+        stock: args.stock,
+      }); // selalu return { acknowledge: boolean, insertedId: new ObjectId }
+
+      const product = await productCollection.findOne({
+        _id: new ObjectId(newProduct.insertedId),
+      });
+
+      console.log(product, "<<< product");
       return product;
+      // return {};
     },
     updateProduct: async (_parent, args) => {
-      const payload = {};
+      const db = getDatabase();
+      const productCollection = db.collection("products");
 
-      for (const key in args.productUpdate) {
-        if (args.productUpdate[key] && key !== "id") {
-          payload[key] = args.productUpdate[key];
-        }
+      const payloadUpdate = {};
+
+      if (args.name) {
+        payloadUpdate.name = args.name;
       }
 
-      console.log(payload, "<<< payload");
-      const product = await updateOneProduct(args.productUpdate.id, payload);
+      if (args.price || args.price === 0) {
+        payloadUpdate.price = args.price;
+      }
+
+      if (args.stock || args.stock === 0) {
+        payloadUpdate.stock = args.stock;
+      }
+
+      const updatedProduct = await productCollection.updateOne(
+        {
+          _id: new ObjectId(args.id),
+        },
+        {
+          $set: payloadUpdate,
+        }
+      );
+
+      const product = await productCollection.findOne({
+        _id: new ObjectId(args.id),
+      });
 
       return product;
-    },
-    deleteProduct: async (_parent, args) => {
-      await deleteOneProduct(args.id);
-      return `Successfully delete product with id ${args.id}`;
     },
   },
 };
