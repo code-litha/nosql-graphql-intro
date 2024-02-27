@@ -33,4 +33,5 @@ module.exports = {
   mongoConnect,
   database, // value dapat dari mana ?
   getDatabase,
+  client,
 };

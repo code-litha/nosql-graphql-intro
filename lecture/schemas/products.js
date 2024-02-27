@@ -6,6 +6,13 @@ const {
   createProduct,
   updatedProduct,
 } = require("../model/product");
+const Redis = require("ioredis");
+const redis = new Redis(); // ini akan mengacu ke localhost:6379
+// const redis = new Redis({
+//   host: "redis-14478.c1.ap-southeast-1-1.ec2.cloud.redislabs.com",
+//   port: 14478,
+//   password: "Y2u6YxslbqCerMrFBFQZuG4HYp8Hwmqp",
+// });
 
 const typeDefs = `#graphql
   type Product {
@@ -41,15 +48,34 @@ const typeDefs = `#graphql
 
 const resolvers = {
   Query: {
-    getProducts: async () => {
+    getProducts: async (parent, args, contextValue) => {
+      const userLogin = await contextValue.auth();
+      // console.log(userLogin, "<<< user login");
+
+      /*
+      1. kita cari dulu apakah sudah ada cacheProduct di  redis ?
+      2. kalau ada, itu yang di return
+      3. kalau ga ada, baru kita find dari database lalu kita set ke redis. dan itu yang di return
+      */
+      const productCache = await redis.get("data:products");
+
+      console.log(productCache, "<<< product cache");
+      if (productCache) {
+        return JSON.parse(productCache);
+      }
       const products = await findAllProduct();
-      console.log(products, "<<< products");
+
+      redis.set("data:products", JSON.stringify(products));
+
+      // console.log(products, "<<< products");
       // for await (const doc of products) {
       //   console.log(doc, "<<< doc");
       // }
       return products;
     },
-    getProductById: async (_parent, args) => {
+    getProductById: async (_parent, args, contextValue) => {
+      const userLogin = await contextValue.auth();
+
       const product = await findOneProductById(args.productId);
 
       return product;
@@ -72,6 +98,8 @@ const resolvers = {
         stock: args.stock,
         imageUrls: [],
       });
+      redis.del("data:products"); //Invalidate cache
+
       return product;
     },
     updateProduct: async (_parent, args) => {

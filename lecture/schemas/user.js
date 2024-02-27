@@ -1,4 +1,11 @@
-const { createUser, findAllUser } = require("../model/user");
+const {
+  createUser,
+  findAllUser,
+  findOneUserByEmail,
+} = require("../model/user");
+const { comparePassword } = require("../utils/bcrypt");
+const { generateToken } = require("../utils/jwt");
+const { GraphQLError } = require("graphql");
 
 const typeDefs = `#graphql
   type User {
@@ -14,12 +21,17 @@ const typeDefs = `#graphql
     password: String!
   }
 
+  type ResponseLogin {
+    token: String
+  }
+
   type Query {
     getAllUsers: [User]
   }
 
   type Mutation {
     register(payload: RegisterInput): User
+    login(email: String!, password: String!): ResponseLogin
   }
 `;
 
@@ -38,6 +50,42 @@ const resolvers = {
       const user = await createUser(payload);
 
       return user;
+    },
+    login: async (_, args) => {
+      const { email, password } = args;
+
+      const user = await findOneUserByEmail(email);
+
+      if (!user) {
+        // throw new Error("Invalid email/password");
+        throw new GraphQLError("Invalid email/password", {
+          extensions: {
+            code: "UNAUTHENTICATED",
+            http: { status: 401 },
+          },
+        });
+      }
+
+      const isValidPassword = comparePassword(password, user.password);
+
+      if (!isValidPassword) {
+        // throw new Error("Invalid email/password");
+        throw new GraphQLError("Invalid email/password", {
+          extensions: {
+            code: "UNAUTHENTICATED",
+            http: { status: 401 },
+          },
+        });
+      }
+
+      const payload = {
+        id: user._id,
+        email: user.email,
+      };
+
+      const token = generateToken(payload);
+
+      return { token };
     },
   },
 };
