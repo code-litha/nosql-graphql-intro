@@ -9,9 +9,9 @@ const {
 const Redis = require("ioredis");
 const redis = new Redis(); // ini akan mengacu ke localhost:6379
 // const redis = new Redis({
-//   host: "redis-14478.c1.ap-southeast-1-1.ec2.cloud.redislabs.com",
-//   port: 14478,
-//   password: "Y2u6YxslbqCerMrFBFQZuG4HYp8Hwmqp",
+//   host: process.env.REDIS_HOST,
+//   port: process.env.REDIS_PORT,
+//   password: process.env.REDIS_PASSWORD,
 // });
 
 const typeDefs = `#graphql
