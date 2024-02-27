@@ -1,9 +1,10 @@
-const { ObjectId } = require("mongodb");
-const { getDatabase } = require("../config/mongoConnection");
 const {
   findAllProduct,
   findOneProductById,
   deleteOneProduct,
+  addImagesProduct,
+  createProduct,
+  updatedProduct,
 } = require("../model/product");
 
 const typeDefs = `#graphql
@@ -12,6 +13,13 @@ const typeDefs = `#graphql
     name: String
     price: Int
     stock: Int
+    authorId: ID
+    author: User
+    imageUrls: [Image]
+  }
+
+  type Image {
+    url: String
   }
 
   type Message {
@@ -27,6 +35,7 @@ const typeDefs = `#graphql
     deleteProduct(productId: ID!): Message
     addProduct(name: String, price: Int, stock: Int): Product
     updateProduct(id: ID!, name: String, price: Int, stock: Int): Product
+    addImages(url: String!, productId: ID!): Product
   }
 `;
 
@@ -57,28 +66,15 @@ const resolvers = {
       };
     },
     addProduct: async (_parent, args) => {
-      // console.log(args);
-      const db = getDatabase();
-      const productCollection = db.collection("products");
-
-      const newProduct = await productCollection.insertOne({
+      const product = await createProduct({
         name: args.name,
         price: args.price,
         stock: args.stock,
-      }); // selalu return { acknowledge: boolean, insertedId: new ObjectId }
-
-      const product = await productCollection.findOne({
-        _id: new ObjectId(newProduct.insertedId),
+        imageUrls: [],
       });
-
-      console.log(product, "<<< product");
       return product;
-      // return {};
     },
     updateProduct: async (_parent, args) => {
-      const db = getDatabase();
-      const productCollection = db.collection("products");
-
       const payloadUpdate = {};
 
       if (args.name) {
@@ -93,18 +89,15 @@ const resolvers = {
         payloadUpdate.stock = args.stock;
       }
 
-      const updatedProduct = await productCollection.updateOne(
-        {
-          _id: new ObjectId(args.id),
-        },
-        {
-          $set: payloadUpdate,
-        }
-      );
-
-      const product = await productCollection.findOne({
-        _id: new ObjectId(args.id),
+      const product = await updatedProduct({
+        productId: args.id,
+        payload: payloadUpdate,
       });
+      return product;
+    },
+    addImages: async (_parent, args) => {
+      const { url, productId } = args;
+      const product = await addImagesProduct({ productId, url });
 
       return product;
     },
